@@ -116,6 +116,7 @@ function loadLines(layer,group,rail){return getJSON(q(layer)).then(function(j){
     var st=rail?{pane:'railLine',color:railColor(p),weight:3,opacity:.9}:{pane:'busLine',color:'#0f9d8e',weight:1.8,opacity:.85};
     var lab=lineLabel(p,rail);
     L.geoJSON(f,{style:st}).bindTooltip(lab).bindPopup('<div style="font-weight:700">'+lab+'</div>').addTo(group);});});}
+ function loadStations(layer,group){return getJSON(q(layer)).then(function(j){
   toFeatures(j).forEach(function(f){if(!f.geometry)return;var c=f.geometry.coordinates;
     L.circleMarker([c[1],c[0]],{pane:'railStn',radius:4,color:'#333',weight:2,fillColor:'#fff',fillOpacity:1})
       .bindTooltip(nameOf(f.properties)||'Station').bindPopup(stopPopup(f.properties)).addTo(group);});});}
