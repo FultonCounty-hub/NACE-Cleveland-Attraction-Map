@@ -21,7 +21,7 @@
  display:flex;align-items:center;justify-content:center;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.5)}
 .starpin{font-size:30px;color:var(--gold);line-height:1;text-shadow:0 0 2px #000,0 0 2px #000,0 0 4px #000}
 @media print{#side{width:280px}.leaflet-control-zoom,.leaflet-control-layers{display:none}}
-#sideToggle{display:none;position:absolute;bottom:16px;right:16px;z-index:1200;background:var(--accent);color:#fff;border:none;border-radius:22px;padding:11px 16px;font-size:14px;font-weight:700;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.35)}
+#sideToggle{display:none;position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:1500;background:var(--accent);color:#fff;border:none;border-radius:22px;padding:10px 18px;font-size:14px;font-weight:700;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.4)}
 @media (max-width:760px){
   #side{position:absolute;top:0;right:0;z-index:1100;width:86%;max-width:320px;height:100%;transform:translateX(102%);transition:transform .25s ease;box-shadow:-3px 0 20px rgba(0,0,0,.28)}
   #side.open{transform:translateX(0)}
@@ -144,7 +144,7 @@ Promise.all([
   loadLines(26,busLines,false), loadLines(25,railLines,true), loadStations(56,railStns)
 ]).then(function(){
   busLines.addTo(map); railLines.addTo(map); railStns.addTo(map); setStatus('GCRTA network loaded (live).');
-  var ctl=L.control.layers(null,{'Rail lines':railLines,'Rail stations':railStns,'Bus routes':busLines,'Bus stops (loads on demand)':busStops},{collapsed:false}).addTo(map);
+  var ctl=L.control.layers(null,{'Rail lines':railLines,'Rail stations':railStns,'Bus routes':busLines,'Bus stops (loads on demand)':busStops},{collapsed:window.innerWidth<=760}).addTo(map);
   map.on('overlayadd',function(e){ if(e.layer===busStops) loadStops(); });
 }).catch(function(e){ setStatus('Transit failed to load: '+e.message+'. The GCRTA service may be momentarily unavailable; reload to retry.'); });
 </script></body></html>
