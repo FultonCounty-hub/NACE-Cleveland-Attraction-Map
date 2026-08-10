@@ -2,7 +2,7 @@
 <title>Cleveland Attractions &amp; Transit — NACE 2027</title>
 <link rel='stylesheet' href='https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css'>
 <style>
-:root{--ink:#1b1b1b;--muted:#6b6f76;--line:#d9d6d0;--accent:#b0202f;--gold:#e6a817;--paper:#fbfaf7}
+:root{--ink:#1b1b1b;--muted:#6b6f76;--line:#d9d6d0;--accent:#b0202f;--pin:#2b3a42;--gold:#e6a817;--paper:#fbfaf7}
 *{box-sizing:border-box}html,body{margin:0;height:100%;font-family:'Segoe UI',system-ui,Arial,sans-serif;color:var(--ink)}
 #sheet{display:flex;height:100vh;background:#fff;position:relative}#map{flex:1;height:100%}
 #side{width:300px;min-width:300px;height:100%;border-left:1px solid var(--line);background:var(--paper);display:flex;flex-direction:column}
@@ -17,7 +17,7 @@
 .leg .r{display:flex;gap:8px;padding:1px 0}.leg .n{width:20px;text-align:right;font-weight:700;color:var(--accent);flex:none}
 #status{margin:4px 14px;font-size:11px;color:var(--muted)}
 .foot{padding:9px 14px;border-top:1px solid var(--line);font-size:10px;color:var(--muted);line-height:1.4}
-.pin{width:23px;height:23px;border-radius:50%;background:var(--accent);color:#fff;font-size:11px;font-weight:700;
+.pin{width:23px;height:23px;border-radius:50%;background:var(--pin);color:#fff;font-size:11px;font-weight:700;
  display:flex;align-items:center;justify-content:center;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.5)}
 .starpin{font-size:30px;color:var(--gold);line-height:1;text-shadow:0 0 2px #000,0 0 2px #000,0 0 4px #000}
 @media print{
@@ -50,6 +50,9 @@
 .leaflet-control-layers.lyrmin .leaflet-control-layers-list{display:none}
 .leaflet-control-layers-list{max-height:calc(100vh - 190px);overflow-y:auto}
 .leaflet-container path.leaflet-interactive:focus,.leaflet-interactive:focus{outline:none}
+.foot b{color:var(--ink);font-size:11px}
+.foot .src{font-weight:700;color:var(--ink)}
+.foot br+span{display:inline}
 </style></head><body>
 <div id='sheet'><div id='map'></div><button id='sideToggle'>&#9776; Legend</button>
  <div id='side'>
@@ -57,7 +60,7 @@
      <div><h1>Cleveland Attractions &amp; Transit</h1><div class='sub'>NACE 2027 &middot; April 5&ndash;8 &middot; Cleveland, Ohio</div></div></div>
    <div class='tkey'>
      <div class='r'><span class='starpin' style='font-size:18px'>&#9733;</span> Host hotel (Hilton Cleveland Downtown)</div>
-     <div class='r'><span class='dot' style='background:var(--accent);border:2px solid #fff;box-shadow:0 0 0 1px #333'></span> Attraction (see key)</div>
+     <div class='r'><span class='dot' style='background:var(--pin);border:2px solid #fff;box-shadow:0 0 0 1px #333'></span> Attraction (see key)</div>
      <div class='r'><span class='sw' style='border-top-color:#c8102e'></span> Red Line (Rapid)</div>
      <div class='r'><span class='sw' style='border-top-color:#0033a0'></span> Blue Line (Rapid)</div>
      <div class='r'><span class='sw' style='border-top-color:#00843d'></span> Green Line (Rapid)</div>
@@ -68,7 +71,7 @@
    </div>
    <div id='status'>Loading GCRTA network&hellip;</div>
    <div class='legwrap'><div class='leg' id='leg'></div></div>
-   <div class='foot'>Attractions: thisiscleveland.com. Transit: GCRTA network, City of Cleveland Planning (GTFS-derived). Basemap &copy; OpenStreetMap, &copy; CARTO. Not endorsed by GCRTA.</div>
+   <div class='foot'><b>Cleveland Attractions &amp; Transit</b> &middot; NACE 2027, April 5&ndash;8, Cleveland, Ohio<br>David Price, GIS Director, Fulton County Auditor's Office &middot; compiled August 2026<br>Web Mercator (EPSG:3857); coordinates WGS 84 (EPSG:4326)<br><span class='src'>Attraction locations</span> &copy; OpenStreetMap contributors (ODbL), verified against OSIP imagery; selection and compilation by the author.<br><span class='src'>Transit</span> GCRTA network / City of Cleveland Planning (GTFS-derived), ArcGIS Feature Service.<br><span class='src'>Basemap</span> &copy; OpenStreetMap contributors, &copy; CARTO.<br>Not endorsed by or affiliated with GCRTA, NACE, or the venues shown.</div>
  </div></div>
 <script src='https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js'></script>
 <script>
@@ -155,6 +158,7 @@ LocateBtn.onAdd=function(){ var d=L.DomUtil.create('div','leaflet-bar'); var a=L
   a.href='#'; a.title='Find me'; a.innerHTML='\u25CE'; a.style.cssText='font-size:18px;line-height:26px;text-align:center';
   L.DomEvent.on(a,'click',function(ev){ L.DomEvent.stop(ev); doLocate(); }); return d; };
 LocateBtn.addTo(map);
+L.control.scale({imperial:true,metric:false,position:'bottomleft',maxWidth:140}).addTo(map);
 (function(){var btn=document.getElementById('sideToggle'),side=document.getElementById('side');
   btn.addEventListener('click',function(){var o=side.classList.toggle('open');btn.innerHTML=o?'\u2715 Close':'\u2630 Legend';});
   map.on('click',function(){ if(side.classList.contains('open')){side.classList.remove('open');btn.innerHTML='\u2630 Legend';} });})();
