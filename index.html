@@ -38,6 +38,11 @@
 }
 .leg .grp{font-weight:700;font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin:10px 0 3px;border-bottom:1px solid var(--line);padding-bottom:2px}
 .leg .grp:first-child{margin-top:0}
+.leg .lrow{cursor:pointer;border-radius:3px;padding:1px 4px;margin:0 -4px;border-left:3px solid transparent;outline:none}
+.leg .lrow:hover{background:#f1ede5}
+.leg .lrow:focus-visible{background:#f1ede5;box-shadow:0 0 0 1px var(--accent)}
+.leg .lrow.on{background:#f8e9ea;border-left-color:var(--accent)}
+@media print{.leg .lrow{cursor:auto;background:none!important;border-left-color:transparent!important}}
 .leaflet-control-layers .lyr-min{display:block;cursor:pointer;text-decoration:none;white-space:nowrap;font:700 11px/1.7 'Segoe UI',system-ui,Arial,sans-serif;color:var(--ink);padding:1px 2px 3px;margin-bottom:5px;border-bottom:1px solid var(--line)}
 .leaflet-control-layers .lyr-min:hover{color:var(--accent)}
 .leaflet-control-layers.lyrmin{padding:5px 8px}
@@ -158,14 +163,16 @@ var busLines=L.layerGroup(),railLines=L.layerGroup(),railStns=L.layerGroup(),bus
 
 function pin(n){return L.divIcon({className:'',html:'<div class="pin">'+n+'</div>',iconSize:[23,23],iconAnchor:[11,11]});}
 function star(){return L.divIcon({className:'',html:'<div class="starpin">&#9733;</div>',iconSize:[30,30],iconAnchor:[15,15]});}
-var dGroups={},nearB=[],allB=[];
+var dGroups={},nearB=[],allB=[],mById={};
 DORDER.forEach(function(d){dGroups[d]=L.layerGroup().addTo(map);});
 A.forEach(function(r){
   var isHost=(r[0]===1);
   var m=L.marker([r[2],r[3]],{icon:(isHost?star():pin(r[0])),zIndexOffset:(isHost?1000:500)});
   m.bindTooltip(r[0]+'. '+r[1],{direction:'top'});
   m.bindPopup(function(){return dirPopup(r[0],r[1],r[2],r[3],r[5]);});
+  m.on('click',function(){markRow(r[0]);});
   m.addTo(dGroups[r[4]]);
+  mById[r[0]]=m;
   allB.push([r[2],r[3]]);
   if(NEAR.indexOf(r[4])>-1)nearB.push([r[2],r[3]]);
 });
@@ -177,10 +184,45 @@ DORDER.forEach(function(d){
   if(!rs.length)return;
   html+='<div class="grp">'+d+'</div>';
   rs.forEach(function(r){
-    html+='<div class="r"><span class="n">'+(r[0]===1?'\u2605':r[0])+'</span><span>'+r[1]+'</span></div>';
+    html+='<div class="r lrow" data-num="'+r[0]+'" role="button" tabindex="0">'+
+          '<span class="n">'+(r[0]===1?'\u2605':r[0])+'</span><span>'+r[1]+'</span></div>';
   });
 });
 document.getElementById('leg').innerHTML=html;
+
+// --- click a legend row (or a pin) to fly there and open its popup ---
+function markRow(n){
+  var prev=document.querySelector('.leg .lrow.on'); if(prev)L.DomUtil.removeClass(prev,'on');
+  var row=document.querySelector('.leg .lrow[data-num="'+n+'"]');
+  if(row){L.DomUtil.addClass(row,'on');
+    if(row.scrollIntoView)row.scrollIntoView({block:'nearest'});}
+}
+function gotoAttraction(n){
+  var r=null; A.forEach(function(x){if(x[0]===n)r=x;});
+  if(!r)return;
+  var g=dGroups[r[4]];
+  if(!map.hasLayer(g))g.addTo(map);          // re-show the district if it was toggled off
+  var m=mById[n];
+  markRow(n);
+  var side=document.getElementById('side'),btn=document.getElementById('sideToggle');
+  if(window.innerWidth<=760&&side.classList.contains('open')){
+    side.classList.remove('open'); btn.innerHTML='\u2630 Legend';}
+  var done=false;
+  function pop(){ if(done||!m)return; done=true; m.openPopup(); }
+  map.once('moveend',pop); setTimeout(pop,1000);   // guard: moveend won't fire if already there
+  map.flyTo([r[2],r[3]],Math.max(map.getZoom(),16),{duration:.8});
+}
+(function(){
+  var leg=document.getElementById('leg');
+  function pick(e){
+    var t=e.target, row=(t.closest?t.closest('.lrow'):null);
+    if(!row)return;
+    L.DomEvent.stop(e);
+    gotoAttraction(+row.getAttribute('data-num'));
+  }
+  leg.addEventListener('click',pick);
+  leg.addEventListener('keydown',function(e){if(e.keyCode===13||e.keyCode===32)pick(e);});
+})();
 
 var ctl=L.control.layers(null,null,{collapsed:false}).addTo(map);
 DORDER.forEach(function(d){ctl.addOverlay(dGroups[d],d);});
