@@ -52,7 +52,12 @@
 .leaflet-container path.leaflet-interactive:focus,.leaflet-interactive:focus{outline:none}
 .foot b{color:var(--ink);font-size:11px}
 .foot .src{font-weight:700;color:var(--ink)}
-.foot br+span{display:inline}
+.foot .srctoggle{display:block;margin-top:5px;font-weight:700;color:var(--ink);text-decoration:none;cursor:pointer;outline:none}
+.foot .srctoggle:hover{color:var(--accent)}
+.foot .srctoggle:focus-visible{color:var(--accent);text-decoration:underline}
+.foot .srcbody{display:none;margin-top:4px}
+.foot.srcopen .srcbody{display:block}
+@media print{.foot .srcbody{display:block!important}.foot .srctoggle{display:none}}
 </style></head><body>
 <div id='sheet'><div id='map'></div><button id='sideToggle'>&#9776; Legend</button>
  <div id='side'>
@@ -71,7 +76,7 @@
    </div>
    <div id='status'>Loading GCRTA network&hellip;</div>
    <div class='legwrap'><div class='leg' id='leg'></div></div>
-   <div class='foot'><b>Cleveland Attractions &amp; Transit</b> &middot; NACE 2027, April 5&ndash;8, Cleveland, Ohio<br>David Price, GIS Director, Fulton County Auditor's Office &middot; compiled August 2026<br>Web Mercator (EPSG:3857); coordinates WGS 84 (EPSG:4326)<br><span class='src'>Attraction locations</span> &copy; OpenStreetMap contributors (ODbL), verified against OSIP imagery; selection and compilation by the author.<br><span class='src'>Transit</span> GCRTA network / City of Cleveland Planning (GTFS-derived), ArcGIS Feature Service.<br><span class='src'>Basemap</span> &copy; OpenStreetMap contributors, &copy; CARTO.<br>Not endorsed by or affiliated with GCRTA, NACE, or the venues shown.</div>
+   <div class='foot' id='foot'><b>Cleveland Attractions &amp; Transit</b> &middot; NACE 2027, April 5&ndash;8, Cleveland, Ohio<br>David Price, GIS Director, Fulton County Auditor's Office &middot; compiled August 2026<a href='#' class='srctoggle' id='srcToggle' role='button'></a><div class='srcbody' id='srcBody'>Web Mercator (EPSG:3857); coordinates WGS 84 (EPSG:4326)<br><span class='src'>Attraction locations</span> &copy; OpenStreetMap contributors (ODbL), verified against OSIP imagery; selection and compilation by the author.<br><span class='src'>Transit</span> GCRTA network / City of Cleveland Planning (GTFS-derived), ArcGIS Feature Service.<br><span class='src'>Basemap</span> &copy; OpenStreetMap contributors, &copy; CARTO.<br>Not endorsed by or affiliated with GCRTA, NACE, or the venues shown.</div></div>
  </div></div>
 <script src='https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js'></script>
 <script>
@@ -331,4 +336,23 @@ Promise.all([
   ctl.addOverlay(busLines,'Bus routes'); ctl.addOverlay(busStops,'Bus stops (loads on demand)');
   map.on('overlayadd',function(e){ if(e.layer===busStops) loadStops(); });
 }).catch(function(e){ setStatus('Transit failed to load: '+e.message+'. The GCRTA service may be momentarily unavailable; reload to retry.'); });
+
+(function(){
+  var f=document.getElementById('foot'),t=document.getElementById('srcToggle');
+  if(!f||!t)return;
+  function render(){t.innerHTML=(L.DomUtil.hasClass(f,'srcopen')?'\u25be':'\u25b8')+' Sources &amp; credits';}
+  function toggle(e){ if(e)L.DomEvent.stop(e);
+    if(L.DomUtil.hasClass(f,'srcopen')){L.DomUtil.removeClass(f,'srcopen');}
+    else{L.DomUtil.addClass(f,'srcopen');}
+    render(); }
+  t.addEventListener('click',toggle);
+  t.addEventListener('keydown',function(e){if(e.keyCode===13||e.keyCode===32)toggle(e);});
+  t.setAttribute('tabindex','0');
+  render();                      // starts collapsed
+  if(window.matchMedia){         // always expand for printing / PDF export
+    var mq=window.matchMedia('print');
+    if(mq.addListener)mq.addListener(function(m){if(m.matches)L.DomUtil.addClass(f,'srcopen');});
+  }
+  window.addEventListener('beforeprint',function(){L.DomUtil.addClass(f,'srcopen');render();});
+})();
 </script></body></html>
