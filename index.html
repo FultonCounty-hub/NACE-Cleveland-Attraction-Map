@@ -38,6 +38,12 @@
 }
 .leg .grp{font-weight:700;font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin:10px 0 3px;border-bottom:1px solid var(--line);padding-bottom:2px}
 .leg .grp:first-child{margin-top:0}
+.leaflet-control-layers .lyr-min{display:block;cursor:pointer;text-decoration:none;white-space:nowrap;font:700 11px/1.7 'Segoe UI',system-ui,Arial,sans-serif;color:var(--ink);padding:1px 2px 3px;margin-bottom:5px;border-bottom:1px solid var(--line)}
+.leaflet-control-layers .lyr-min:hover{color:var(--accent)}
+.leaflet-control-layers.lyrmin{padding:5px 8px}
+.leaflet-control-layers.lyrmin .lyr-min{margin-bottom:0;border-bottom:none;padding-bottom:1px}
+.leaflet-control-layers.lyrmin .leaflet-control-layers-list{display:none}
+.leaflet-control-layers-list{max-height:calc(100vh - 190px);overflow-y:auto}
 </style></head><body>
 <div id='sheet'><div id='map'></div><button id='sideToggle'>&#9776; Legend</button>
  <div id='side'>
@@ -174,8 +180,24 @@ DORDER.forEach(function(d){
 });
 document.getElementById('leg').innerHTML=html;
 
-var ctl=L.control.layers(null,null,{collapsed:window.innerWidth<=760}).addTo(map);
+var ctl=L.control.layers(null,null,{collapsed:false}).addTo(map);
 DORDER.forEach(function(d){ctl.addOverlay(dGroups[d],d);});
+
+// click-to-minimize header on the layer box (Leaflet's own collapse is hover-based,
+// which re-opens every time the cursor crosses it)
+(function(){
+  var c=ctl.getContainer();
+  var t=L.DomUtil.create('a','lyr-min');
+  t.href='#'; t.title='Show/hide the layer list'; t.setAttribute('role','button');
+  c.insertBefore(t,c.firstChild);
+  function render(){t.innerHTML=(L.DomUtil.hasClass(c,'lyrmin')?'\u2630':'\u2715')+' Layers';}
+  function set(min){ if(min){L.DomUtil.addClass(c,'lyrmin');}else{L.DomUtil.removeClass(c,'lyrmin');} render(); }
+  L.DomEvent.on(t,'click',function(e){L.DomEvent.stop(e);set(!L.DomUtil.hasClass(c,'lyrmin'));});
+  L.DomEvent.on(t,'keydown',function(e){if(e.keyCode===13){L.DomEvent.stop(e);set(!L.DomUtil.hasClass(c,'lyrmin'));}});
+  L.DomEvent.disableClickPropagation(c);
+  L.DomEvent.disableScrollPropagation(c);
+  set(window.innerWidth<=760);   // starts closed on phones, open on desktop
+})();
 
 var FitBtn=L.control({position:'topleft'});
 FitBtn.onAdd=function(){var d=L.DomUtil.create('div','leaflet-bar'),a=L.DomUtil.create('a','',d);
