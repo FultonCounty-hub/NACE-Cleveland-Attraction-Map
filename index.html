@@ -140,7 +140,7 @@ var A=[
 [57,"Vincent William Wine",41.8383803,-81.0457077,"Grand River Valley","Lakefront inn and restaurant; ~65 min"],
 [58,"Pro Football Hall of Fame",40.8211015,-81.3978536,"Canton & Beyond","Canton, ~60 min south on I-77"],
 [59,"Gervasi Vineyard",40.8572725,-81.3514024,"Canton & Beyond","Resort, restaurants, and tasting cave; pairs with Canton"],
-[60,"irthplace of Pat Ginnetti, PE., PS. : Struthers, Ohio",41.0562711,-80.5915104,"Canton & Beyond","~75 min southeast"]],
+[60,"Struthers, Ohio",41.0562711,-80.5915104,"Canton & Beyond","Birthplace of Pat Ginnetti, PE., PS. :~75 min southeast"]],
 DORDER=["Host Venue", "Downtown & Lakefront", "Ohio City & Near West", "University Circle", "Greater Cleveland", "Grand River Valley", "Canton & Beyond"],
 NEAR=["Downtown & Lakefront", "Greater Cleveland", "Host Venue", "Ohio City & Near West", "University Circle"],
 SVC="https://services3.arcgis.com/dty2kHktVXHrqO8i/arcgis/rest/services/GCRTA_transit/FeatureServer";
@@ -644,5 +644,41 @@ Promise.all([
     else key.appendChild(row);
   }
 })();
+
+ (function () {
+  var NUM = 60;
+  var FULL = 'Birthplace of Pat Ginnetti, PE, PS : Struthers, Ohio';
  
+  // 1. the data row - drives tooltip and popup title
+  try {
+    if (typeof A !== 'undefined') {
+      for (var i = 0; i < A.length; i++) {
+        if (A[i][0] === NUM) { A[i][1] = FULL; break; }
+      }
+    }
+  } catch (e) {}
+ 
+  // 2. the live marker - rebind so the tooltip picks up the new text
+  try {
+    if (typeof mById !== 'undefined' && mById[NUM]) {
+      var m = mById[NUM];
+      m.unbindTooltip();
+      m.bindTooltip(NUM + '. ' + FULL, { direction: 'top' });
+    }
+  } catch (e) {}
+ 
+  // 3. the legend row - second span holds the name
+  var row = document.querySelector('.leg .lrow[data-num="' + NUM + '"]');
+  if (row) {
+    var spans = row.querySelectorAll('span');
+    if (spans.length > 1) spans[spans.length - 1].textContent = FULL;
+  }
+ 
+  // 4. let long names wrap under the number instead of overflowing
+  var st = document.createElement('style');
+  st.textContent =
+    '.leg .r{align-items:flex-start}' +
+    '.leg .r>span:last-child{flex:1;min-width:0;overflow-wrap:break-word;word-break:normal}';
+  document.head.appendChild(st);
+})();
 </script></body></html>
