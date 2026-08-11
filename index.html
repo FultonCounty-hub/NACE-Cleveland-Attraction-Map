@@ -603,4 +603,46 @@ Promise.all([
   else roadLayer.addTo(map);
  
 })();
+
+ (function () {
+  var D = 'M12 2.4 22.2 11 19.6 11 19.6 21.2 4.4 21.2 4.4 11 1.8 11 Z';
+  var FILL = '#b0202f';
+ 
+  function svg(size, strokeW, withDoor) {
+    return '<svg xmlns="http://www.w3.org/2000/svg" width="' + size + '" height="' + size +
+      '" viewBox="0 0 24 24" style="vertical-align:-1px">' +
+      '<path d="' + D + '" fill="' + FILL + '" stroke="#fff" stroke-width="' + strokeW +
+      '" stroke-linejoin="round"/>' +
+      '<path d="' + D + '" fill="none" stroke="#333" stroke-width=".7" stroke-linejoin="round"/>' +
+      (withDoor ? '<rect x="10" y="14.6" width="4" height="6.6" fill="#fff" stroke="#333" stroke-width=".6"/>' : '') +
+      '</svg>';
+  }
+ 
+  // 1. the map marker
+  try {
+    if (typeof mById !== 'undefined' && mById[60]) {
+      mById[60].setIcon(L.divIcon({
+        className: '', iconSize: [26, 26], iconAnchor: [13, 13], html: svg(26, 2, true)
+      }));
+      mById[60].setZIndexOffset(900);
+    }
+  } catch (e) {}
+ 
+  // 2. the legend row - glyph instead of the number
+  var cell = document.querySelector('.leg .lrow[data-num="60"] .n');
+  if (cell) cell.innerHTML = svg(10, 1.2, false);
+ 
+  // 3. a line in the symbol key, under the host-hotel line
+  var key = document.querySelector('.tkey');
+  if (key && !/Pat Ginnetti/.test(key.textContent)) {
+    var row = document.createElement('div');
+    row.className = 'r';
+    row.innerHTML = '<span style="flex:none;width:13px;display:inline-block">' +
+      svg(13, 1.4, true) + '</span> Birthplace of Pat Ginnetti, PE, PS';
+    var first = key.querySelector('.r');
+    if (first && first.nextSibling) key.insertBefore(row, first.nextSibling);
+    else key.appendChild(row);
+  }
+})();
+ 
 </script></body></html>
