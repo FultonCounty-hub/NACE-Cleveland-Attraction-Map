@@ -355,4 +355,252 @@ Promise.all([
   }
   window.addEventListener('beforeprint',function(){L.DomUtil.addClass(f,'srcopen');render();});
 })();
+ (function () {
+ 
+  // ==========================================================================
+  // CFG  -  edit here
+  // ==========================================================================
+  var CFG = {
+ 
+    // ---- which roads to draw, by zoom level --------------------------------
+    // NOACA functional class: 1 Interstate | 2 Freeway/Expressway
+    //                         3 Principal Arterial | 4 Minor Arterial
+    //                         5 Major Collector | 6 Minor Collector | 7 Local
+    // Higher zoom = more detail. Raise a number to show more roads.
+    classByZoom: function (z) {
+      if (z >= 16) return 5;
+      if (z >= 14) return 4;
+      if (z >= 12) return 3;
+      if (z >= 10) return 2;
+      return 1;
+    },
+ 
+    // ---- always include these, whatever their functional class -------------
+    // SQL against the CCPC centreline service. Add lines freely.
+    // Field names: ccSTR_NAME, ccSTR_SUFFIX, ccPREFIX_DIR, ccPRE_TYPE, ccSUFFIX_DIR
+    always: [
+      "ccSTR_NAME LIKE 'FULTON%'",
+      "ccSTR_NAME LIKE 'FRANKLIN%'",
+      "ccSTR_NAME LIKE 'COLUMBUS%'",
+      "ccSTR_NAME LIKE 'SCRANTON%'",
+      "ccSTR_NAME LIKE 'WADE PARK%'",
+      "ccSTR_NAME LIKE '%MARTIN LUTHER KING%'",
+      "(ccSTR_NAME LIKE 'EAST%' AND ccSTR_SUFFIX LIKE 'BLVD%')"
+      // , "ccSTR_NAME LIKE 'CARNEGIE%'"        <- pattern for adding more
+    ],
+ 
+    // ---- names to never draw or label --------------------------------------
+    junk: /^(ramp|ramps|connector|conn|alley|unnamed|private|service|drive ?way|access|spur|no name)$/i,
+ 
+    // ---- label behaviour ---------------------------------------------------
+    maxLabels: 18,     // ceiling per view
+    minSpanPx: 120,    // a road must cross this many px to be drawn at all
+    pinPadPx: 16,      // keep-out radius around each attraction pin
+    minClearPx: 5,     // how close a label may come to a pin before it is dropped
+ 
+    // ---- appearance --------------------------------------------------------
+    roadColor: '#8d939b',
+    roadOpacity: 0.38,
+    labelColor: '#4a4f55',
+    labelSizePx: 8.5,
+ 
+    // ---- services ----------------------------------------------------------
+    ccpc: 'https://services8.arcgis.com/1cKSe8lh4duMZ8W0/arcgis/rest/services/' +
+          'Hybrid_Street_Centerlines_(For_Apps)/FeatureServer/0',
+    odot: 'https://tims.dot.state.oh.us/ags/rest/services/Roadway_Information/' +
+          'PCR_State/MapServer/0',
+    odotTypesByZoom: function (z) {
+      if (z >= 12) return ["IR", "US", "SR"];
+      if (z >= 10) return ["IR", "US"];
+      return ["IR"];
+    }
+  };
+  // ==========================================================================
+  // end CFG
+  // ==========================================================================
+ 
+  if (typeof map === 'undefined' || typeof L === 'undefined') return;
+ 
+  var style = document.createElement('style');
+  style.textContent =
+    '.rdlbl{color:' + CFG.labelColor + ';font-weight:700;font-size:' + CFG.labelSizePx + 'px;' +
+    'letter-spacing:.05em;text-transform:uppercase;text-align:center;white-space:nowrap;' +
+    "font-family:'Segoe UI',system-ui,Arial,sans-serif;" +
+    'text-shadow:0 0 3px #fff,0 0 3px #fff,0 0 3px #fff,0 0 5px #fff}';
+  document.head.appendChild(style);
+ 
+  if (!map.getPane('roadLabels')) {
+    map.createPane('roadLabels');
+    map.getPane('roadLabels').style.zIndex = 645;
+    map.getPane('roadLabels').style.pointerEvents = 'none';
+  }
+ 
+  var roadLayer = L.layerGroup();
+  var isJunk = function (nm) {
+    return !nm || CFG.junk.test(nm.trim()) || /\bramps?\b/i.test(nm);
+  };
+  var upright = function (a) { while (a > 90) a -= 180; while (a < -90) a += 180; return a; };
+ 
+  function ccpcName(p) {
+    p = p || {};
+    var t = p.ccSTR_TYPE, n = (p.ROUTE_NBR || '').replace(/^0+/, '').trim();
+    if (n) { if (t === 1) return 'I-' + n; if (t === 2) return 'US-' + n; if (t === 3) return 'SR-' + n; }
+    return [(p.ccPREFIX_DIR || '').trim(), (p.ccPRE_TYPE || '').trim(), (p.ccSTR_NAME || '').trim(),
+            (p.ccSTR_SUFFIX || '').trim(), (p.ccSUFFIX_DIR || '').trim()]
+           .filter(function (x) { return x; }).join(' ').trim();
+  }
+  function odotName(p) {
+    p = p || {};
+    var n = (p.ROUTE_NBR || '').replace(/^0+/, '').trim(); if (!n) return '';
+    var t = (p.ROUTE_TYPE || '').toUpperCase();
+    return (t === 'IR' ? 'I-' : t === 'US' ? 'US-' : t === 'SR' ? 'SR-' : '') + n;
+  }
+  function toLatLngs(g) {
+    if (!g) return [];
+    if (g.type === 'LineString') return [g.coordinates.map(function (c) { return [c[1], c[0]]; })];
+    if (g.type === 'MultiLineString') return g.coordinates.map(function (l) {
+      return l.map(function (c) { return [c[1], c[0]]; }); });
+    return [];
+  }
+  function q(base, where, fields) {
+    var b = map.getBounds();
+    return base + '/query?f=geojson&outSR=4326&returnGeometry=true' +
+      '&where=' + encodeURIComponent(where) +
+      '&geometryType=esriGeometryEnvelope&inSR=4326&spatialRel=esriSpatialRelIntersects' +
+      '&geometry=' + encodeURIComponent(b.getWest() + ',' + b.getSouth() + ',' +
+                                        b.getEast() + ',' + b.getNorth()) +
+      '&outFields=' + encodeURIComponent(fields) + '&resultRecordCount=2000';
+  }
+  function weight(rank) { return rank <= 2 ? 2.6 : rank === 3 ? 1.9 : 1.3; }
+ 
+  var CC_FIELDS = 'ccSTR_NAME,ccPRE_TYPE,ccPREFIX_DIR,ccSTR_SUFFIX,ccSUFFIX_DIR,' +
+                  'ccSTR_TYPE,ccNOACA_FC,ROUTE_NBR';
+ 
+  var token = 0;
+  function refresh() {
+    var mine = ++token;
+    if (!map.hasLayer(roadLayer)) return;
+    roadLayer.clearLayers();
+ 
+    var z = map.getZoom(), groups = {}, forced = {};
+    function absorb(pts, nm, rank, isForced) {
+      if (pts.length < 2 || isJunk(nm)) return;
+      if (!groups[nm]) groups[nm] = { rank: rank, pts: [], lines: [] };
+      if (rank < groups[nm].rank) groups[nm].rank = rank;
+      groups[nm].pts = groups[nm].pts.concat(pts);
+      groups[nm].lines.push(pts);
+      if (isForced) forced[nm] = true;
+    }
+ 
+    var types = CFG.odotTypesByZoom(z).map(function (t) { return "'" + t + "'"; }).join(',');
+    var jobs = [
+      fetch(q(CFG.odot, 'ROUTE_TYPE IN (' + types + ')', 'ROUTE_TYPE,ROUTE_NBR'))
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (j) { if (!j) return;
+          (j.features || []).forEach(function (f) {
+            var p = f.properties || {}, t = (p.ROUTE_TYPE || '').toUpperCase();
+            var rank = t === 'IR' ? 1 : t === 'US' ? 2 : 3;
+            toLatLngs(f.geometry).forEach(function (pts) { absorb(pts, odotName(p), rank, false); });
+          });
+        }).catch(function () {}),
+ 
+      fetch(q(CFG.ccpc, 'ccNOACA_FC<=' + CFG.classByZoom(z) + ' AND ccNOACA_FC>0', CC_FIELDS))
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (j) { if (!j) return;
+          (j.features || []).forEach(function (f) {
+            var p = f.properties || {};
+            toLatLngs(f.geometry).forEach(function (pts) {
+              absorb(pts, ccpcName(p), p.ccNOACA_FC || 9, false); });
+          });
+        }).catch(function () {})
+    ];
+ 
+    if (CFG.always.length) {
+      jobs.push(fetch(q(CFG.ccpc, CFG.always.join(' OR '), CC_FIELDS))
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (j) { if (!j) return;
+          (j.features || []).forEach(function (f) {
+            var p = f.properties || {}, nm = ccpcName(p);
+            toLatLngs(f.geometry).forEach(function (pts) { absorb(pts, nm, 3, true); });
+          });
+        }).catch(function () {}));
+    }
+ 
+    Promise.all(jobs).then(function () {
+      if (mine !== token) return;               // a newer pan/zoom superseded this
+      Object.keys(groups).forEach(function (nm) {
+        var g = groups[nm];
+        var pp = g.pts.map(function (ll) { return map.latLngToContainerPoint(L.latLng(ll[0], ll[1])); });
+        var xs = pp.map(function (p) { return p.x; }), ys = pp.map(function (p) { return p.y; });
+        var span = Math.max(Math.max.apply(null, xs) - Math.min.apply(null, xs),
+                            Math.max.apply(null, ys) - Math.min.apply(null, ys));
+        if (span < CFG.minSpanPx && !forced[nm]) { delete groups[nm]; return; }
+        g.forced = !!forced[nm];
+        g.lines.forEach(function (pts) {
+          L.polyline(pts, { color: CFG.roadColor, weight: weight(g.rank),
+            opacity: CFG.roadOpacity, interactive: false, lineJoin: 'round' }).addTo(roadLayer);
+        });
+      });
+      label(groups);
+    });
+  }
+ 
+  function label(groups) {
+    var taken = [], sz = map.getSize(), b = map.getBounds();
+    (typeof A !== 'undefined' ? A : []).forEach(function (r) {
+      var ll = L.latLng(r[2], r[3]); if (!b.contains(ll)) return;
+      var p = map.latLngToContainerPoint(ll);
+      taken.push({ x: p.x, y: p.y, rx: CFG.pinPadPx, ry: CFG.pinPadPx });
+    });
+    var names = Object.keys(groups).sort(function (x, y) {
+      var fx = groups[x].forced ? -1 : 0, fy = groups[y].forced ? -1 : 0;
+      if (fx !== fy) return fx - fy;
+      return (groups[x].rank || 9) - (groups[y].rank || 9);
+    });
+    var placed = 0;
+    names.forEach(function (nm) {
+      if (placed >= CFG.maxLabels || isJunk(nm)) return;
+      var pts = groups[nm].pts.map(function (ll) {
+        return map.latLngToContainerPoint(L.latLng(ll[0], ll[1]));
+      }).filter(function (p) { return p.x > -20 && p.x < sz.x + 20 && p.y > -20 && p.y < sz.y + 20; });
+      if (pts.length < 2) return;
+      var halfW = Math.min(nm.length * 2.9 + 8, 58), halfH = 6, best = null;
+      pts.forEach(function (p) {
+        if (p.x < halfW + 4 || p.x > sz.x - halfW - 4 || p.y < halfH + 6 || p.y > sz.y - halfH - 4) return;
+        var clear = Infinity;
+        taken.forEach(function (o) {
+          clear = Math.min(clear, Math.max(Math.abs(o.x - p.x) - (o.rx + halfW),
+                                           Math.abs(o.y - p.y) - (o.ry + halfH)));
+        });
+        if (!best || clear > best.clear) best = { p: p, clear: clear };
+      });
+      if (!best || best.clear < CFG.minClearPx) return;
+      var cx = 0, cy = 0, cnt = 0, sxx = 0, syy = 0, sxy = 0;
+      pts.forEach(function (p) { if (p.distanceTo(best.p) > 60) return; cnt++; cx += p.x; cy += p.y; });
+      if (cnt < 2) return;
+      cx /= cnt; cy /= cnt;
+      pts.forEach(function (p) {
+        if (p.distanceTo(best.p) > 60) return;
+        var dx = p.x - cx, dy = p.y - cy; sxx += dx * dx; syy += dy * dy; sxy += dx * dy;
+      });
+      var ang = upright(0.5 * Math.atan2(2 * sxy, sxx - syy) * 180 / Math.PI);
+      L.marker(map.containerPointToLatLng(best.p), {
+        interactive: false, pane: 'roadLabels',
+        icon: L.divIcon({ className: '', iconSize: [170, 14], iconAnchor: [85, 7],
+          html: '<div class="rdlbl" style="transform:rotate(' + ang.toFixed(1) + 'deg)">' + nm + '</div>' })
+      }).addTo(roadLayer);
+      taken.push({ x: best.p.x, y: best.p.y, rx: halfW, ry: halfH });
+      placed++;
+    });
+  }
+ 
+  var t = null;
+  map.on('moveend zoomend', function () { clearTimeout(t); t = setTimeout(refresh, 350); });
+  map.on('overlayadd', function (e) { if (e.layer === roadLayer) refresh(); });
+ 
+  // hook into the existing layer control if there is one
+  if (typeof ctl !== 'undefined' && ctl && ctl.addOverlay) ctl.addOverlay(roadLayer, 'Roads &amp; road labels');
+  else roadLayer.addTo(map);
+ 
+})();
 </script></body></html>
