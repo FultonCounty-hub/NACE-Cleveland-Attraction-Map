@@ -681,4 +681,82 @@ Promise.all([
     '.leg .r>span:last-child{flex:1;min-width:0;overflow-wrap:break-word;word-break:normal}';
   document.head.appendChild(st);
 })();
-</script></body></html>
+</script>
+<!-- ===== mobile sidebar fix: paste this block immediately before </body> ===== -->
+<style>
+#sideClose{display:none;position:absolute;top:8px;right:10px;z-index:2000;
+  width:34px;height:34px;padding:0;border:none;border-radius:50%;
+  background:var(--accent);color:#fff;font-size:15px;line-height:34px;
+  text-align:center;cursor:pointer;box-shadow:0 1px 6px rgba(0,0,0,.3)}
+#sideScrim{position:absolute;top:0;left:0;right:0;bottom:0;z-index:1050;
+  background:rgba(0,0,0,.35);opacity:0;pointer-events:none;transition:opacity .25s ease}
+@media (max-width:760px){
+  #sideClose{display:block}
+  #sideScrim.on{opacity:1;pointer-events:auto}
+}
+@media print{#sideClose,#sideScrim{display:none!important}}
+</style>
+<script>
+(function(){
+  var side  = document.getElementById('side'),
+      btn   = document.getElementById('sideToggle'),
+      sheet = document.getElementById('sheet');
+  if(!side || !sheet) return;
+
+  function isMobile(){ return window.matchMedia('(max-width:760px)').matches; }
+
+  /* scrim behind the panel, tap it to dismiss */
+  var scrim = document.createElement('div');
+  scrim.id = 'sideScrim';
+  sheet.appendChild(scrim);
+
+  /* close button inside the panel, always on top of anything else */
+  var x = document.createElement('button');
+  x.id = 'sideClose';
+  x.type = 'button';
+  x.setAttribute('aria-label','Close legend');
+  x.innerHTML = '\u2715';
+  side.appendChild(x);
+
+  /* true only while the user has deliberately asked for the panel */
+  var intent = false;
+
+  function label(){
+    if(btn) btn.innerHTML = side.classList.contains('open') ? '\u2715 Close' : '\u2630 Legend';
+  }
+  function closePanel(){
+    intent = false;
+    side.classList.remove('open');
+    scrim.classList.remove('on');
+    label();
+  }
+
+  /* capture phase, so this runs before the original toggle handler */
+  if(btn) btn.addEventListener('click', function(){ intent = true; }, true);
+
+  x.addEventListener('click', function(e){ e.stopPropagation(); closePanel(); });
+  scrim.addEventListener('click', closePanel);
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape' && side.classList.contains('open')) closePanel();
+  });
+
+  /* reverse any open the user did not ask for, e.g. selecting an attraction */
+  new MutationObserver(function(){
+    var open = side.classList.contains('open');
+    if(isMobile() && open && !intent){
+      side.classList.remove('open');
+      scrim.classList.remove('on');
+      label();
+      return;
+    }
+    scrim.classList.toggle('on', isMobile() && open);
+    label();
+  }).observe(side, {attributes:true, attributeFilter:['class']});
+
+  /* leaving mobile width resets everything to the desktop layout */
+  window.addEventListener('resize', function(){ if(!isMobile()) closePanel(); });
+})();
+</script>
+<!-- ===== end mobile sidebar fix ===== -->
+
+</body></html>
