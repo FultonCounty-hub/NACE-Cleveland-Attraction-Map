@@ -146,7 +146,7 @@ NEAR=["Downtown & Lakefront", "Greater Cleveland", "Host Venue", "Ohio City & Ne
 SVC="https://services3.arcgis.com/dty2kHktVXHrqO8i/arcgis/rest/services/GCRTA_transit/FeatureServer";
 var userLoc=null,youMarker=null,youCircle=null;
 var map=L.map('map',{zoomControl:true});
-L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png?key=cb1_3lx8_1_0beb77e4508d5ea0ddc21615,{subdomains:'abcd',maxZoom:19,attribution:'&copy; OSM, &copy; CARTO'}).addTo(map);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png?key=cb1_3lx8_1_0beb77e4508d5ea0ddc21615',{subdomains:'abcd',maxZoom:19,attribution:'&copy; OSM, &copy; CARTO'}).addTo(map);
 map.createPane('busLine').style.zIndex=405; map.createPane('railLine').style.zIndex=430;
 map.createPane('busStop').style.zIndex=415; map.createPane('railStn').style.zIndex=460;
 map.createPane('you').style.zIndex=650;
